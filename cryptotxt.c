@@ -212,8 +212,8 @@ void crypt (char*filename, unsigned long pswhash){
 	rewind(tempfileptr);
 
 	ch = fgetc(fileptr);
-    while (ch != EOF) {
-        ch += pswhash;
+    while (!feof(fileptr)) {
+        ch -= pswhash;
         fputc(ch, tempfileptr);
         ch = fgetc(fileptr);
     }
@@ -235,8 +235,8 @@ void decrypt (char*filename, unsigned long pswhash){
 	rewind(tempfileptr);
 	
 	ch = fgetc(fileptr);
-    while (ch != EOF) {
-        ch -= pswhash;
+    while (!feof(fileptr)) {
+        ch += pswhash;
         fputc(ch, tempfileptr);
         ch = fgetc(fileptr);
     }
