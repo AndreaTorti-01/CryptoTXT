@@ -1,248 +1,275 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-unsigned long hash(char*);
+
+#define MAX_INFO_LEN 30
+
+typedef struct { //credentials structure
+	char info1[MAX_INFO_LEN + 1];
+	char info2[MAX_INFO_LEN + 1];
+	char info3[MAX_INFO_LEN + 1];
+} credential;
+
+unsigned long hash(char*psw); //functions
 void clr_brand ();
-void crypt(char*, unsigned long);
-void decrypt(char*, unsigned long);
+void crypt();
+void decrypt();
+
+FILE* fileptr; //global variables
+FILE* tempfileptr;
+unsigned long pswhash;
+char filename[20];
+credential credential_one;
 
 int main() {
-    FILE *fileptr;
-    FILE *tempfileptr;
-    char info1[30], info2[30], info3[30], buffer[92], filename[20], psw[20], ch;
-    int action, r, temp;
-    unsigned long pswhash;
+	char buffer[3 * MAX_INFO_LEN + 3], ch, psw[20];
+	int action, r, temp;
 
-	tempfileptr = fopen("temp.crp", "w");	/*checks if the program has the permission to create temp file*/
-    if (tempfileptr == NULL) {
-        printf("Cannot run the software: contact the developer\n\n");
-        fclose(tempfileptr);
-        return 0;
-    }
-    fclose(tempfileptr);
-    remove("temp.crp");
-
-    do{
-    	clr_brand ();
-    	printf("Select the desired action:\n\n0 :Create new file\n1 :Open existing file\n\n");
-    	scanf("%d", &action);
-    	clr_brand ();
-		switch (action){
+	do{
+		clr_brand ();
+		printf("Select the desired action:\n\n0 :Create new file\n1 :Open existing file\n\n>> ");
+		scanf("%d", &action); //the user can create a new file or open an existing one
+		clr_brand ();
+		switch (action) {
+			
 			case 0:
-				printf("Enter the new file name without extension: ");	/*creates the new file, writing the password at the beginning before the first cryptation*/
-		        scanf("%s", filename);
-		        strcat(filename, ".crp");
-		        fileptr = fopen(filename, "w");
-				printf("\nEnter the new password: ");
+				printf("Enter the new file name without extension: "); //asks for new filename
+				scanf("%s", filename);
+				strcat(filename, ".crp"); //adds the extension
+				fileptr = fopen(filename, "w"); //tries to create the file
+				if (fileptr == NULL) { //checks that the file was created
+					printf ("Critical error: cannot run the software");
+					exit(1);
+				}
+
+				printf("\nEnter the new password: "); //asks for password
 				scanf("%s", psw);
-				pswhash = hash(psw);
-		    	fprintf(fileptr, "%s\n", psw);
-		    	fclose(fileptr);
-		    	crypt(filename, pswhash);
+				pswhash = hash(psw); //generates the hash
+				fprintf(fileptr, "%s\n", psw); //writes the password at the beginning of the new file
+				fclose(fileptr);
+				crypt(); //crypts the new file
 				break;
 
 			case 1:
-				do {	/*asks the user the file name to find until a valid one is entered*/
-			        printf("Enter the file name without extension: ");
-			        scanf("%s", filename);
-			        strcat(filename, ".crp");
-			        fileptr = fopen(filename, "r");
-			        if (fileptr == NULL) {
-			            clr_brand();
-			            printf("Invalid file name: the file does not exist\n\n");
-			        }
-			        fclose(fileptr);
-			    } while (fileptr == NULL);
-
-			    temp=0;		/*asks the user the password until the first line of the file corresponds to it*/
-			    printf("\nEnter the password: ");
-			    do {
-				    scanf("%s", psw);
-				    pswhash = hash(psw);
-					decrypt(filename, pswhash);
-					fileptr = fopen(filename, "r");
-					fgets(buffer, 20, fileptr);
-					strcat(psw, "\n");
-					if (strcmp(buffer, psw)==0) temp=1;
+				do {
+					printf("Enter the file name without extension: "); //asks for filename to open
+					scanf("%s", filename);
+					strcat(filename, ".crp"); //adds the extension
+					fileptr = fopen(filename, "r"); //tries to open the file
+					if (fileptr == NULL) { //checks that the file was opened
+						printf ("The file %s does not exist\n", filename);
+					}
 					fclose(fileptr);
-					crypt(filename, pswhash);
+				} while (fileptr == NULL); //asks again until a valid filename is entered
+
+				temp=0;
+				printf("\nEnter the password: ");
+				do {
+					scanf("%s", psw); //asks for the password
+					pswhash = hash(psw); //generates the hash
+					strcat(psw, "\n"); //adds a newline char to the password
+					decrypt(); //decrypts the file
+					fileptr = fopen(filename, "r"); //opens the file
+					if (fileptr == NULL) {
+						printf ("Critical error: cannot run the software");
+						exit(1);
+					}
+					fgets(buffer, 20, fileptr); //fills the buffer with the first line of the file
+					if (strcmp(buffer, psw)==0) temp=1; //if the buffer corresponds to the password, the entered one was correct
+					fclose(fileptr);
+					crypt(); //crypts the file again
 					if (temp==0) printf ("\nIncorrect password, try again: ");
-				} while (temp==0);
-			    break;
+				} while (temp==0); //re-tries the process until the correct password is entered
+				break;
 
 			default:
-	            printf("Please enter a valid value\n\n");
+				printf("Please enter a valid value\n\n");
 		}
 	} while (action!=0 && action!=1);
 
 	clr_brand();
 
-    do {
-        printf("Select the desired action:\n\n0 :Insert new credentials\n1 :Delete existing credentials\n2 :Search existing credentials\n3: Print existing credentials list\n4: Quit\n\n");
-        scanf("%d", &action);
-        clr_brand();
-        switch (action) {
+	do {
+		printf("Select the desired action:\n\n0 :Insert new credentials\n1 :Delete existing credentials\n2 :Search existing credentials\n3: Print existing credentials list\n4: Quit\n\n>> ");
+		scanf("%d", &action); //the user can insert new credentials, delete existing ones, search for some, print the whole file or quit
+		clr_brand();
+		switch (action) {
 
-            case 0:
-                printf("Enter info 1 of 3 of the new credential: ");	/*asks for the new infos*/
-                scanf("%s", info1);
-                printf("Enter info 2 of 3 of the new credential: ");
-                scanf("%s", info2);
-                printf("Enter info 3 of 3 of the new credential: ");
-                scanf("%s", info3);
+			case 0:
+				printf("Enter info 1 of 3 of the new credential: "); //asks for the new infos
+				scanf("%s", credential_one.info1);
+				printf("Enter info 2 of 3 of the new credential: ");
+				scanf("%s", credential_one.info2);
+				printf("Enter info 3 of 3 of the new credential: ");
+				scanf("%s", credential_one.info3);
 
-                decrypt(filename, pswhash);
-                fileptr = fopen(filename, "a");			/*appends the new infos to the file*/
-                fprintf (fileptr, "%s %s %s\n", info1, info2, info3);
-                fclose (fileptr);
-                crypt(filename, pswhash);
-                printf("\nNew credential registered successfully\n");
-                break;
-
-            case 1:
-                printf("Insert one info of the credential to delete: ");
-                do {
-	                scanf("%s", info1);
-	                if (strcmp(info1, psw)==0) printf ("\nCannot delete the password, enter the info again: ");
-	        	} while (strcmp(info1, psw)==0);	/*asks for info to find and compares the line with the password*/
-	        	decrypt(filename, pswhash);
-	        	fileptr = fopen(filename, "r");
-                rewind(fileptr);
-                r = -1;
-                temp = 1;
-                while ((fgets(buffer, 92, fileptr)) != NULL) {
-                    r = r + 1;
-                    if (strstr(buffer, info1) != NULL) {
-                        temp = 0;				/*finds the line to delete in the database, if found sets temp=0*/
-                        break;
-                    }
-                }
-	            if (temp == 0) {				/*creates temp.crp with all chars copied except the selected line*/
-                    rewind(fileptr);
-                    tempfileptr = fopen("temp.crp", "w");
-                    rewind (tempfileptr);
-                    ch = 'a';
-                    while (ch != EOF) {
-                        ch = getc(fileptr);
-                        if (temp != r && ch != EOF) putc(ch, tempfileptr);
-                        if (ch == '\n') temp++;
-                    }
-                    fclose(fileptr);
-                    fclose(tempfileptr);
-                    remove(filename);			/*deletes the original file and renames temp.crp*/
-                    rename("temp.crp", filename);
-                    printf("\nCredential deleted successfully\n");
-                }
-                else {
-                	printf("\nCredential not found\n");
-					fclose(fileptr);
+				decrypt();
+				fileptr = fopen(filename, "a"); //opens the file placing the file pointer at the end of it
+				if (fileptr == NULL) { //checks for correct opening
+					printf ("Critical error: cannot run the software");
+					exit(1);
 				}
-				crypt(filename, pswhash);
-                break;
+				fprintf (fileptr, "%s %s %s\n", credential_one.info1, credential_one.info2, credential_one.info3); //prints the new credentials and a newline char at the end of the file
+				fclose (fileptr);
+				printf("\nNew credential registered successfully\n");
+				crypt();
+				break;
 
-            case 2:
-                printf("Insert one info of the credential to find: ");
-                do {
-	                scanf("%s", info1);
-	                if (strcmp(info1, psw)==0) printf ("\nCannot search for the password, enter the info again: ");
-	        	} while (strcmp(info1, psw)==0);	/*asks for info to find and compares the line with the password*/
-                temp = 1;
-                r =  - 1;
-                decrypt(filename, pswhash);
-                fileptr = fopen(filename, "r");
-                rewind (fileptr);
-                while ((fgets(buffer, 92, fileptr)) != NULL) {
-                    r = r + 1;
-                    if (strstr(buffer, info1) != NULL) {
-                        printf("\n%s", buffer);			/*finds the line in the database, if found it prints it and sets temp=0*/
-                        temp=0;
-                        break;
-                    }
-                }
-                fclose(fileptr);
-                if (temp==1) printf("\nCredential not found\n");
-                crypt(filename, pswhash);
-                break;
+			case 1:
+				printf("Insert one info of the credential to delete: ");
+				scanf("%s", credential_one.info1); //asks for an info of the line to delete
+				decrypt();
+				fileptr = fopen(filename, "r"); //opens the file in read-only mode
+				if (fileptr == NULL) { //checks for correct opening
+					printf ("Critical error: cannot run the software");
+					exit(1);
+				}
+				r = -1; //sets the "found" line to -1
+				temp = 1; //sets temp as "line not found"
 
-            case 3:
-            	decrypt(filename, pswhash);
-                fileptr = fopen(filename, "r");		/*prints all the lines except the first one, containing the password*/
-                rewind (fileptr);
-                fgets(buffer, 92, fileptr);
-                while (!feof(fileptr)) {
-                    if (fgets(buffer, 92, fileptr) != NULL) {
-                        printf("%s", buffer);
-                    }
-                }
-                fclose(fileptr);
-                crypt(filename, pswhash);
-                break;
+				while ((fgets(buffer, 92, fileptr)) != NULL) { //writes the whole line in the buffer and sets the pointer to the next one
+					r = r + 1; //r is the number of the line where it finds the info
+					if (strstr(buffer, credential_one.info1) != NULL) { //tries to find the info in the current line
+						temp = 0; //if found, informs the software about it
+						break;
+					}
+				}
 
-            case 4:
-                break;
+				if (temp == 0) { //if the line is found starts the second section
+					rewind(fileptr); //rewinds the file pointer, since the file is still open
+					tempfileptr = fopen("temp.crp", "w"); //creates a temp file
+					if (tempfileptr == NULL) { //checks for correct creation
+						printf ("Critical error: cannot run the software");
+						exit(1);
+					}
+					ch = 'a';
+					while (ch != EOF) { //copies the whole file to temp...
+						ch = getc(fileptr);
+						if (temp != r && ch != EOF) putc(ch, tempfileptr); //...except the line to delete (r)
+						if (ch == '\n') temp++;
+					}
+					fclose(fileptr);
+					fclose(tempfileptr);
+					remove(filename);
+					rename("temp.crp", filename); //closes the files, deletes the original one and renames temp to filetemp
+					printf("\nCredential deleted successfully\n");
+				}
+				else {
+					printf("\nCredential not found\n");
+					fclose(fileptr); //takes care of closing the file anyway in case of failure to find the info
+				}
+				crypt();
+				break;
 
-            default:
-                printf("Please enter a valid value");
-        }
-        printf("\n\n\n");
-    } while (action != 4);
-    return 0;
+			case 2:
+				printf("Insert one info of the credential to find: ");
+				scanf("%s", credential_one.info1); //asks for the info to find
+				decrypt();
+				fileptr = fopen(filename, "r"); //opens the file in read mode
+				if (fileptr == NULL) { //checks for correct opening
+					printf ("Critical error: cannot run the software");
+					exit(1);
+				}
+
+				temp = 1; //"line not found!"
+				while ((fgets(buffer, 92, fileptr)) != NULL) { //finds the line
+					if (strstr(buffer, credential_one.info1) != NULL) {
+						printf("\n%s", buffer); //literally prints the line
+						temp = 0; //"line found!"
+						break;
+					}
+				}
+				fclose(fileptr);
+				if (temp == 1) printf("\nCredential not found\n");
+				crypt();
+				break;
+
+			case 3:
+				decrypt();
+				fileptr = fopen(filename, "r"); //opens the file in read mode
+				if (fileptr == NULL) { //checks for correct opening
+					printf ("Critical error: cannot run the software");
+					exit(1);
+				}
+
+				fgets(buffer, 92, fileptr); //fills the buffer with the first line to avoid printing the password
+				while (!feof(fileptr)) {
+					if (fgets(buffer, 92, fileptr) != NULL) { //and then the other lines...
+						printf("%s", buffer); //...before printing them
+					}
+				}
+				fclose(fileptr);
+				crypt();
+				break;
+
+			case 4:
+				break; //does nothing, prepares to quit
+
+			default:
+				printf("Please enter a valid value");
+		}
+		printf("\n\n\n");
+	} while (action != 4); //repeats until 4 is entered
+	return 0;
 }
 
-unsigned long hash(char*str) {
-    unsigned long hash = 5381;
-    int c;
-    while (c =  *str++) {
-        hash = ((hash << 5) + hash) + c;
-    } return hash;
+unsigned long hash(char*psw) { //the super secret hashing function (djb2 by Dan Bernstein)
+	unsigned long hash = 5381;
+	int c;
+	while (c =  *psw++) {
+		hash = ((hash << 5) + hash) + c;
+	} return hash;
 }
 
-void clr_brand (){
+void clr_brand (){ //branding to put on top of the terminal
 	system("cls");
-    printf("Cryptotxt\n---------\n\n");
+	printf("Cryptotxt\n---------\n\n");
 }
 
-void crypt (char*filename, unsigned long pswhash){
-	FILE *fileptr;
-    FILE *tempfileptr;
+void crypt (){ //crypting function
 	char ch;
 
-	fileptr = fopen(filename, "r");
-	tempfileptr = fopen("temp.crp", "w");
-	rewind(fileptr);
-	rewind(tempfileptr);
+	fileptr = fopen(filename, "r"); //opens the file in read mode
+	tempfileptr = fopen("temp.crp", "w"); //creates a temp file
+
+	if (tempfileptr == NULL || fileptr == NULL) { //checks for correct openings
+		printf ("Critical error: cannot run the software");
+		exit(1);
+	}
 
 	ch = fgetc(fileptr);
-    while (!feof(fileptr)) {
-        ch -= pswhash;
-        fputc(ch, tempfileptr);
-        ch = fgetc(fileptr);
-    }
+	while (!feof(fileptr)) { //repeats until the pointer reaches the end of the file (ch != eof does not work because eof is actually a char that can appear when the file is crypted)
+		ch -= pswhash; //subtracts the hash from every single char in the file
+		fputc(ch, tempfileptr);
+		ch = fgetc(fileptr);
+	}
 
 	fclose(fileptr);
-    fclose(tempfileptr);
-    remove(filename);
-    rename("temp.crp", filename);
+	fclose(tempfileptr);
+	remove(filename);
+	rename("temp.crp", filename); //deletes original file, renames temp file.
 }
 
-void decrypt (char*filename, unsigned long pswhash){
-	FILE *fileptr;
-    FILE *tempfileptr;
+void decrypt (){ //same as crypting but with the plus (+) instead of the minus (-)
 	char ch;
 	
 	fileptr = fopen(filename, "r");
 	tempfileptr = fopen("temp.crp", "w");
-	rewind(fileptr);
-	rewind(tempfileptr);
+
+	if (tempfileptr == NULL || fileptr == NULL) {
+		printf ("Critical error: cannot run the software");
+		exit(1);
+	}
 	
 	ch = fgetc(fileptr);
-    while (!feof(fileptr)) {
-        ch += pswhash;
-        fputc(ch, tempfileptr);
-        ch = fgetc(fileptr);
-    }
+	while (!feof(fileptr)) {
+		ch += pswhash;
+		fputc(ch, tempfileptr);
+		ch = fgetc(fileptr);
+	}
 
 	fclose(fileptr);
-    fclose(tempfileptr);
-    remove(filename);
-    rename("temp.crp", filename);
+	fclose(tempfileptr);
+	remove(filename);
+	rename("temp.crp", filename);
 }
