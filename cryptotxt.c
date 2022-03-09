@@ -4,6 +4,8 @@
 
 #define MAX_INFO_LEN 30
 
+//ciao
+
 typedef struct { //credentials structure
 	char info1[MAX_INFO_LEN + 1];
 	char info2[MAX_INFO_LEN + 1];
