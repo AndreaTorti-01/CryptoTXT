@@ -1,1 +1,3 @@
-ciao Tia
+# CryptoTXT
+
+A cryptographic software to manage local files.
